@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Pro MLM System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        :root {
+            /* Light Theme Defaults */
+            --bg-primary: #f8fafc; /* Slate-50 */
+            --bg-secondary: white;
+            --text-primary: #1e293b; /* Slate-800 */
+            --text-secondary: #475569; /* Slate-600 */
+            --accent-blue: #3b82f6;
+            --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .dark {
+            --bg-primary: #0f172a; /* Slate-900 */
+            --bg-secondary: #1e293b; /* Slate-800 */
+            --text-primary: #f1f5f9; /* Slate-100 */
+            --text-secondary: #94a3b8; /* Slate-400 */
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .card {
+            background-color: var(--bg-secondary);
+            border-radius: 0.75rem;
+            box-shadow: var(--card-shadow);
+            padding: 1.5rem;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .input-field {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--text-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Matrix Tree Specific Styles */
+        .matrix-node {
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--accent-blue);
+        }
+        .matrix-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+        .node-line {
+            background-color: var(--accent-blue);
+        }
+        .downline-container {
+            display: flex;
+            justify-content: center;
+            position: relative;
+            padding-top: 1rem;
+        }
+        .downline-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 1rem;
+            background-color: var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="min-h-screen p-4 md:p-8">
+    <!-- Header -->
+    <header class="mb-8 flex justify-between items-center">
+        <h1 id="header-title" class="text-3xl font-black text-gray-800 dark:text-gray-100">Matrix Pro</h1>
+        <div class="flex items-center space-x-4">
+            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                <svg id="sun-icon" class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <svg id="moon-icon" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+            <button id="logout-button" class="hidden text-sm font-medium text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition" onclick="app.logout()">
+                Logout
+            </button>
+        </div>
+    </header>
+
+    <!-- Global Loading/Message Area -->
+    <div id="loading-spinner" class="flex justify-center items-center h-64 text-blue-500 font-semibold" style="display:none;">
+        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        System Initializing...
+    </div>
+    
+    <div id="message-box" class="card fixed top-4 right-4 z-50 p-4 border shadow-lg" style="display:none;">
+        <p id="message-text" class="text-sm"></p>
+        <button onclick="app.hideMessage()" class="absolute top-1 right-2 text-xl font-bold">&times;</button>
+    </div>
+
+    <!-- MAIN CONTENT VIEWS (Rendered based on auth state) -->
+    <div id="login-view" style="display:none;">
+        <!-- Login View Content -->
+        <div class="max-w-md mx-auto card mt-12">
+            <h2 class="text-2xl font-bold mb-6 text-center text-accent-blue">System Access</h2>
+            <div class="mb-4">
+                <button onclick="app.setLoginMode('user')" id="user-login-btn" class="w-full p-3 font-semibold rounded-lg bg-blue-600 text-white shadow-md hover:bg-blue-700 transition">
+                    User Login (Auto Sign-in)
+                </button>
+            </div>
+            <div class="mb-6">
+                <p class="text-center text-sm my-2 text-text-secondary">OR</p>
+                <button onclick="app.setLoginMode('admin')" id="admin-login-btn" class="w-full p-3 font-semibold rounded-lg bg-red-600 text-white shadow-md hover:bg-red-700 transition">
+                    Admin Login
+                </button>
+            </div>
+            
+            <form id="admin-login-form" class="space-y-4 border-t pt-4 border-gray-200 dark:border-gray-700" style="display:none;">
+                <p class="text-center text-sm text-text-secondary">Admin Password: <span class="font-mono text-red-500">admin123</span></p>
+                <div>
+                    <label for="admin-password" class="block text-sm font-medium text-text-secondary">Password</label>
+                    <input type="password" id="admin-password" required class="input-field w-full p-2 rounded-lg focus:ring-red-500 focus:border-red-500 mt-1">
+                </div>
+                <button type="submit" class="w-full bg-red-600 text-white p-3 rounded-lg font-semibold hover:bg-red-700 transition">
+                    Login as Admin
+                </button>
+                <button type="button" onclick="app.setLoginMode('user')" class="w-full text-sm text-text-secondary hover:text-accent-blue mt-2">
+                    Back to User Login
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="dashboard-view" class="grid grid-cols-1 lg:grid-cols-3 gap-6" style="display:none;">
+        <!-- Column 1: Dashboard and Registration -->
+        <div class="lg:col-span-1 space-y-6">
+
+            <!-- Metrics Card -->
+            <div class="card">
+                <h2 class="text-xl font-semibold mb-4 text-accent-blue">My Overview</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center p-3 rounded-lg bg-gray-100 dark:bg-gray-700">
+                        <span class="font-medium text-text-secondary">Commission Balance</span>
+                        <span id="commission-balance" class="text-2xl font-bold text-green-600 dark:text-green-400">$0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 rounded-lg bg-gray-100 dark:bg-gray-700">
+                        <span class="font-medium text-text-secondary">Total Downline</span>
+                        <span id="total-downline" class="text-2xl font-bold text-accent-blue">0</span>
+                    </div>
+                    <div class="p-3 rounded-lg bg-gray-200 dark:bg-gray-600 break-words">
+                        <span class="text-sm text-text-secondary block mb-1">Your User ID (Sponsor):</span>
+                        <span id="user-id-display" class="text-xs font-mono bg-gray-50 dark:bg-gray-700 p-1 rounded inline-block text-text-primary"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Withdrawal Card -->
+            <div class="card">
+                <h2 class="text-xl font-semibold mb-4 text-accent-blue">Withdraw Funds</h2>
+                <form id="withdraw-form" class="space-y-4">
+                    <div>
+                        <label for="withdraw-amount" class="block text-sm font-medium text-text-secondary mb-1">Amount ($)</label>
+                        <input type="number" id="withdraw-amount" min="1" step="0.01" required class="input-field w-full p-2 rounded-lg" placeholder="100.00">
+                    </div>
+                    <button type="submit" class="w-full bg-yellow-600 text-white p-3 rounded-lg font-semibold hover:bg-yellow-700 transition shadow-md shadow-yellow-300">
+                        <span id="withdraw-btn-text">Request Withdrawal</span>
+                    </button>
+                    <div id="withdrawal-status" class="text-sm text-text-secondary mt-2"></div>
+                </form>
+            </div>
+
+            <!-- Register New Member Card -->
+            <div class="card">
+                <h2 class="text-xl font-semibold mb-4 text-accent-blue">Register New Member</h2>
+                <form id="register-form" class="space-y-4">
+                    <div>
+                        <label for="new-member-name" class="block text-sm font-medium text-text-secondary mb-1">Member Name</label>
+                        <input type="text" id="new-member-name" required class="input-field w-full p-2 rounded-lg" placeholder="e.g., Jane Smith">
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition shadow-md shadow-green-300">
+                        <span id="register-btn-text">Register Member</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Column 2 & 3: Genealogy Tree -->
+        <div class="lg:col-span-2 card">
+            <h2 class="text-xl font-semibold mb-6 text-accent-blue flex justify-between items-center">
+                My Genealogy Tree (3x Structure)
+                <span id="current-tree-view" class="text-sm font-normal text-text-secondary">Viewing: Me</span>
+            </h2>
+            <div class="overflow-x-auto p-4 rounded-lg border dark:border-gray-700 min-h-[400px]">
+                <div id="genealogy-tree-container" class="w-full flex justify-center min-w-[700px] relative">
+                    <!-- Tree will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="admin-view" class="space-y-8" style="display:none;">
+        <div class="card">
+            <h2 class="text-2xl font-bold text-red-600 mb-4">Admin Control Panel</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="p-4 rounded-lg bg-red-100 dark:bg-red-900/50">
+                    <h3 class="text-lg font-semibold text-red-600 dark:text-red-400">Total System Users</h3>
+                    <p id="admin-total-users" class="text-4xl font-extrabold mt-1">0</p>
+                </div>
+                <div class="p-4 rounded-lg bg-red-100 dark:bg-red-900/50">
+                    <h3 class="text-lg font-semibold text-red-600 dark:text-red-400">Pending Withdrawals</h3>
+                    <p id="admin-pending-withdrawals" class="text-4xl font-extrabold mt-1">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Tree View -->
+        <div class="card">
+            <h2 class="text-xl font-semibold mb-6 text-red-600">Full System Genealogy</h2>
+            <div class="overflow-x-auto p-4 rounded-lg border dark:border-gray-700 min-h-[400px]">
+                <div id="admin-tree-container" class="w-full flex justify-center min-w-[1000px] relative">
+                    <p id="admin-tree-message" class="text-text-secondary">Select a root user to view their matrix tree.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Withdrawal Management -->
+        <div class="card">
+            <h2 class="text-xl font-semibold mb-4 text-red-600">Withdrawal Requests</h2>
+            <div id="withdrawal-list" class="space-y-3">
+                <p id="no-withdrawals" class="text-text-secondary">No pending withdrawal requests.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // --- FIREBASE IMPORTS ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, runTransaction, updateDoc, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Set Firestore log level for debugging
+    setLogLevel('Debug');
+
+    // --- CONFIGURATION ---
+    const ADMIN_PASSWORD = 'admin123';
+    const MATRIX_WIDTH = 3;
+    const COMMISSION_AMOUNT = 10.00;
+    const MIN_WITHDRAWAL = 20.00;
+    const APP_COLLECTION_USERS = 'users';
+    const APP_COLLECTION_WITHDRAWALS = 'withdrawals';
+
+    // Get Canvas environment variables
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+    // --- GLOBAL STATE ---
+    let app, auth, db;
+    let currentUserId = null;
+    let currentUserData = null;
+    let allUserData = {};
+    let withdrawalRequests = [];
+    let isAdmin = false;
+
+    // --- UTILITIES & UI FUNCTIONS ---
+
+    const DOM = {
+        app: document.getElementById('app'),
+        views: {
+            login: document.getElementById('login-view'),
+            dashboard: document.getElementById('dashboard-view'),
+            admin: document.getElementById('admin-view')
+        },
+        forms: {
+            adminLogin: document.getElementById('admin-login-form'),
+            register: document.getElementById('register-form'),
+            withdraw: document.getElementById('withdraw-form'),
+        },
+        elements: {
+            loadingSpinner: document.getElementById('loading-spinner'),
+            headerTitle: document.getElementById('header-title'),
+            authStatus: document.getElementById('auth-status'),
+            logoutButton: document.getElementById('logout-button'),
+            userIdDisplay: document.getElementById('user-id-display'),
+            messageBox: document.getElementById('message-box'),
+            messageText: document.getElementById('message-text'),
+            themeToggle: document.getElementById('theme-toggle'),
+            sunIcon: document.getElementById('sun-icon'),
+            moonIcon: document.getElementById('moon-icon'),
+        }
+    };
+
+    /** Handles global messages */
+    function showMessage(text, type = 'success', duration = 5000) {
+        DOM.elements.messageText.textContent = text;
+        let className = 'bg-green-100 border-green-400 text-green-800';
+        if (type === 'error') {
+            className = 'bg-red-100 border-red-400 text-red-800';
+        } else if (type === 'warning') {
+            className = 'bg-yellow-100 border-yellow-400 text-yellow-800';
+        }
+        DOM.elements.messageBox.className = 'card fixed top-4 right-4 z-50 p-4 border shadow-lg ' + className;
+        DOM.elements.messageBox.style.display = 'block';
+
+        if (duration > 0) {
+            setTimeout(() => app.hideMessage(), duration);
+        }
+    }
+
+    /** Hides the global message box */
+    function hideMessage() {
+        DOM.elements.messageBox.style.display = 'none';
+    }
+
+    /** Sets loading state for the whole app */
+    function showLoading(show) {
+        DOM.elements.loadingSpinner.style.display = show ? 'flex' : 'none';
+        if (show) {
+            Object.values(DOM.views).forEach(view => view.style.display = 'none');
+        }
+    }
+    
+    /** Renders the correct view (Login/Dashboard/Admin) */
+    function renderView(viewName) {
+        Object.values(DOM.views).forEach(view => view.style.display = 'none');
+        DOM.views[viewName].style.display = 'grid'; // Use 'grid' for dashboard, 'block' for others
+        DOM.elements.logoutButton.style.display = (viewName !== 'login') ? 'block' : 'none';
+        
+        const titleMap = {
+            dashboard: "User Dashboard",
+            admin: "Admin Panel",
+            login: "Matrix Pro"
+        };
+        DOM.elements.headerTitle.textContent = titleMap[viewName];
+
+        if (viewName === 'admin') {
+             DOM.views.admin.style.display = 'block';
+        }
+    }
+
+    // --- THEME LOGIC ---
+
+    function initializeTheme() {
+        const theme = localStorage.getItem('theme') || 'light';
+        setTheme(theme);
+
+        DOM.elements.themeToggle.addEventListener('click', () => {
+            const currentTheme = DOM.app.classList.contains('dark') ? 'light' : 'dark';
+            setTheme(currentTheme);
+        });
+    }
+
+    function setTheme(theme) {
+        if (theme === 'dark') {
+            DOM.app.classList.add('dark');
+            DOM.elements.sunIcon.style.display = 'block';
+            DOM.elements.moonIcon.style.display = 'none';
+            localStorage.setItem('theme', 'dark');
+        } else {
+            DOM.app.classList.remove('dark');
+            DOM.elements.sunIcon.style.display = 'none';
+            DOM.elements.moonIcon.style.display = 'block';
+            localStorage.setItem('theme', 'light');
+        }
+    }
+
+
+    // --- FIREBASE INITIALIZATION & AUTHENTICATION ---
+
+    async function initializeFirebase() {
+        showLoading(true);
+
+        if (Object.keys(firebaseConfig).length === 0) {
+            showMessage("Initialization Error: Firebase configuration is missing.", 'error', 0);
+            return;
+        }
+
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            // Check if Admin session exists
+            if (localStorage.getItem('isAdminActive') === 'true') {
+                isAdmin = true;
+                // Sign in anonymously for Admin access to Firestore
+                await signInAnonymously(auth);
+            } else {
+                // Initial sign-in for regular user
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            }
+
+            // Set up Auth State Listener
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUserId = user.uid;
+                    DOM.elements.authStatus.textContent = isAdmin ? `Admin: ${currentUserId.substring(0, 8)}...` : `User: ${currentUserId.substring(0, 8)}...`;
+                    
+                    if (isAdmin) {
+                        app.setupAdminListeners();
+                    } else {
+                        app.setupUserListeners();
+                    }
+                } else {
+                    app.logout(); // Redirect to login if unauthenticated
+                }
+            });
+
+        } catch (error) {
+            console.error("Firebase initialization failed:", error);
+            showMessage(`System Error: ${error.message}`, 'error', 0);
+            showLoading(false);
+            renderView('login');
+        }
+    }
+
+    function logout() {
+        isAdmin = false;
+        localStorage.removeItem('isAdminActive');
+        auth.signOut();
+        currentUserId = null;
+        currentUserData = null;
+        allUserData = {};
+        withdrawalRequests = [];
+        DOM.elements.authStatus.textContent = '';
+        renderView('login');
+        showLoading(false);
+    }
+    
+    function setLoginMode(mode) {
+        if (mode === 'admin') {
+            DOM.forms.adminLogin.style.display = 'block';
+            DOM.forms.adminLogin.querySelector('#admin-password').focus();
+        } else {
+            // User login is handled by the auto sign-in process
+            DOM.forms.adminLogin.style.display = 'none';
+            initializeFirebase();
+        }
+    }
+
+
+    // --- FIRESTORE COLLECTION REFERENCES ---
+
+    function getCollectionRef(collectionName) {
+        // All data is public for simplicity in this shared app environment
+        return collection(db, 'artifacts', appId, 'public', 'data', collectionName);
+    }
+
+    // --- REAL-TIME LISTENERS ---
+
+    function setupUserListeners() {
+        app.initializeUserDocument();
+        app.setupRealtimeDataListeners(currentUserId);
+        renderView('dashboard');
+    }
+
+    function setupAdminListeners() {
+        app.setupRealtimeDataListeners(); // Admin fetches everything
+        app.setupWithdrawalListener();
+        renderView('admin');
+    }
+
+    function setupRealtimeDataListeners(userId = null) {
+        // Listener for all user data (needed to build the tree)
+        const qUsers = query(getCollectionRef(APP_COLLECTION_USERS));
+
+        onSnapshot(qUsers, (snapshot) => {
+            allUserData = {};
+            snapshot.forEach((doc) => {
+                allUserData[doc.id] = doc.data();
+            });
+
+            if (userId) {
+                // User Dashboard updates
+                currentUserData = allUserData[userId];
+                if (currentUserData) {
+                    app.updateDashboard(currentUserData);
+                    app.renderGenealogyTree(userId);
+                }
+            }
+
+            if (isAdmin) {
+                // Admin Dashboard updates
+                app.updateAdminDashboard(allUserData);
+            }
+            showLoading(false);
+        }, (error) => {
+            console.error("Error listening to users collection:", error);
+            showMessage("Failed to load user data.", 'error');
+            showLoading(false);
+        });
+    }
+    
+    function setupWithdrawalListener() {
+         const qWithdrawals = query(
+            getCollectionRef(APP_COLLECTION_WITHDRAWALS),
+            where('status', '==', 'Pending')
+        );
+
+        onSnapshot(qWithdrawals, (snapshot) => {
+            withdrawalRequests = [];
+            snapshot.forEach((doc) => {
+                withdrawalRequests.push({ id: doc.id, ...doc.data() });
+            });
+            app.renderWithdrawalRequests();
+        }, (error) => {
+            console.error("Error listening to withdrawals:", error);
+        });
+    }
+
+    // --- MATRIX LOGIC ---
+
+    function initializeUserDocument() {
+        const userRef = doc(getCollectionRef(APP_COLLECTION_USERS), currentUserId);
+        getDoc(userRef).then(userSnap => {
+            if (!userSnap.exists()) {
+                // New user, create initial document
+                setDoc(userRef, {
+                    userId: currentUserId,
+                    username: \`User-\${currentUserId.substring(0, 8)}\`,
+                    sponsorId: null,
+                    parentId: null,
+                    downlines: [],
+                    commissionBalance: 0.00,
+                    level: 0,
+                    createdAt: new Date(),
+                });
+            }
+            DOM.elements.userIdDisplay.textContent = currentUserId;
+        });
+    }
+    
+    // Breadth-First Search (BFS) for the next open slot (Spillover)
+    function findNextOpenSlot(startUserId) {
+        const queue = [startUserId];
+        const visited = new Set();
+        
+        while (queue.length > 0) {
+            const currentId = queue.shift();
+            
+            if (visited.has(currentId)) continue;
+            visited.add(currentId);
+            
+            const currentMember = allUserData[currentId];
+            
+            if (!currentMember) continue;
+
+            if (currentMember.downlines.length < MATRIX_WIDTH) {
+                return currentId; // Found the parentId (the open slot)
+            }
+            
+            // Queue downlines (left to right)
+            currentMember.downlines.forEach(downlineId => {
+                if (downlineId && !visited.has(downlineId)) {
+                    queue.push(downlineId);
+                }
+            });
+        }
+        return startUserId; // Fallback: place directly under sponsor (should be impossible if the system is properly initialized)
+    }
+
+    async function registerNewMember(name) {
+        const registerBtn = DOM.forms.register.querySelector('#register-btn-text');
+        registerBtn.textContent = 'Processing...';
+
+        try {
+            // Find the actual parent for the new member (handles spillover starting from the sponsor)
+            const parentId = findNextOpenSlot(currentUserId);
+            const parentRef = doc(getCollectionRef(APP_COLLECTION_USERS), parentId);
+            
+            const newMemberId = crypto.randomUUID();
+            const newMemberRef = doc(getCollectionRef(APP_COLLECTION_USERS), newMemberId);
+
+            let newMemberLevel = 0;
+            if (allUserData[parentId]) {
+                newMemberLevel = allUserData[parentId].level + 1;
+            }
+
+            // Transaction for atomic operations
+            await runTransaction(db, async (transaction) => {
+                const parentDoc = await transaction.get(parentRef);
+                if (!parentDoc.exists()) {
+                    throw new Error("Parent member not found in the database!");
+                }
+
+                const parentData = parentDoc.data();
+                const updatedDownlines = [...parentData.downlines, newMemberId];
+
+                if (updatedDownlines.length > MATRIX_WIDTH) {
+                    throw new Error("Parent's matrix level is already full. Internal placement error.");
+                }
+
+                // 1. Update the parent's downlines
+                transaction.update(parentRef, { downlines: updatedDownlines });
+
+                // 2. Create the new member's document
+                transaction.set(newMemberRef, {
+                    userId: newMemberId,
+                    username: name,
+                    sponsorId: currentUserId, 
+                    parentId: parentId, 
+                    downlines: [],
+                    commissionBalance: 0.00,
+                    level: newMemberLevel,
+                    createdAt: new Date(),
+                });
+                
+                // 3. Pay commission to the sponsor
+                const sponsorRef = doc(getCollectionRef(APP_COLLECTION_USERS), currentUserId);
+                const sponsorDoc = await transaction.get(sponsorRef);
+                
+                if (sponsorDoc.exists()) {
+                    const sponsorData = sponsorDoc.data();
+                    const newBalance = sponsorData.commissionBalance + COMMISSION_AMOUNT;
+                    transaction.update(sponsorRef, { commissionBalance: newBalance });
+                    showMessage(\`\${name} registered under \${allUserData[parentId].username}. You earned $\${COMMISSION_AMOUNT.toFixed(2)}!\`);
+                }
+            });
+
+            DOM.forms.register.reset();
+            
+        } catch (e) {
+            console.error("Registration failed: ", e);
+            showMessage(\`Registration Failed: \${e.message || 'Unknown error.'}\`, 'error');
+        } finally {
+            registerBtn.textContent = 'Register Member';
+        }
+    }
+
+    // --- WITHDRAWAL LOGIC ---
+
+    async function requestWithdrawal(amount) {
+        if (!currentUserData) {
+            showMessage("User data not loaded.", 'error');
+            return;
+        }
+
+        const withdrawBtn = DOM.forms.withdraw.querySelector('#withdraw-btn-text');
+        const statusDiv = document.getElementById('withdrawal-status');
+        withdrawBtn.textContent = 'Submitting...';
+        statusDiv.textContent = '';
+        
+        try {
+            const amountFloat = parseFloat(amount);
+            if (amountFloat < MIN_WITHDRAWAL) {
+                showMessage(`Minimum withdrawal is $${MIN_WITHDRAWAL.toFixed(2)}.`, 'warning');
+                return;
+            }
+            if (amountFloat > currentUserData.commissionBalance) {
+                showMessage("Insufficient balance.", 'warning');
+                return;
+            }
+            
+            // Use runTransaction to ensure balance update and request creation are atomic
+            await runTransaction(db, async (transaction) => {
+                const userRef = doc(getCollectionRef(APP_COLLECTION_USERS), currentUserId);
+                const userDoc = await transaction.get(userRef);
+
+                if (!userDoc.exists() || userDoc.data().commissionBalance < amountFloat) {
+                    throw new Error("Balance changed or user not found during transaction.");
+                }
+
+                // 1. Deduct balance immediately
+                const newBalance = userDoc.data().commissionBalance - amountFloat;
+                transaction.update(userRef, { commissionBalance: newBalance });
+
+                // 2. Create withdrawal request
+                const withdrawalRef = doc(getCollectionRef(APP_COLLECTION_WITHDRAWALS));
+                transaction.set(withdrawalRef, {
+                    userId: currentUserId,
+                    username: currentUserData.username,
+                    amount: amountFloat,
+                    requestedAt: new Date(),
+                    status: 'Pending'
+                });
+            });
+
+            DOM.forms.withdraw.reset();
+            showMessage(`Withdrawal request for $${amountFloat.toFixed(2)} submitted successfully.`, 'success');
+            statusDiv.textContent = 'Request submitted. Balance deducted.';
+
+        } catch (e) {
+            console.error("Withdrawal failed:", e);
+            showMessage(`Withdrawal Failed: ${e.message || 'Unknown error.'}`, 'error');
+            statusDiv.textContent = 'Submission failed.';
+        } finally {
+            withdrawBtn.textContent = 'Request Withdrawal';
+        }
+    }
+
+    // --- ADMIN LOGIC ---
+
+    function updateAdminDashboard(users) {
+        document.getElementById('admin-total-users').textContent = Object.keys(users).length;
+        document.getElementById('admin-pending-withdrawals').textContent = withdrawalRequests.length;
+        app.renderAdminTreeSelector();
+    }
+    
+    function renderAdminTreeSelector() {
+        const container = document.getElementById('admin-tree-container');
+        container.innerHTML = '';
+        const rootUser = Object.values(allUserData).find(user => user.level === 0);
+        
+        if (rootUser) {
+            app.renderGenealogyTree(rootUser.userId, 'admin');
+        } else {
+             document.getElementById('admin-tree-message').style.display = 'block';
+        }
+    }
+    
+    function renderWithdrawalRequests() {
+        const listContainer = document.getElementById('withdrawal-list');
+        listContainer.innerHTML = '';
+
+        if (withdrawalRequests.length === 0) {
+            listContainer.innerHTML = '<p id="no-withdrawals" class="text-text-secondary">No pending withdrawal requests.</p>';
+            return;
+        }
+
+        withdrawalRequests.forEach(request => {
+            const item = document.createElement('div');
+            item.className = 'flex justify-between items-center p-3 rounded-lg bg-red-50 dark:bg-red-900/50 border border-red-200';
+            item.innerHTML = `
+                <div>
+                    <span class="font-semibold text-text-primary">$${request.amount.toFixed(2)}</span> 
+                    <span class="text-sm text-text-secondary"> from ${request.username} (${request.userId.substring(0, 4)}...)</span>
+                </div>
+                <button class="bg-red-500 text-white text-xs font-medium py-1 px-3 rounded hover:bg-red-600 transition" 
+                        onclick="app.completeWithdrawal('${request.id}')">
+                    Complete Payout
+                </button>
+            `;
+            listContainer.appendChild(item);
+        });
+    }
+
+    async function completeWithdrawal(requestId) {
+        if (!isAdmin) return;
+        
+        const requestRef = doc(getCollectionRef(APP_COLLECTION_WITHDRAWALS), requestId);
+        
+        try {
+            await updateDoc(requestRef, {
+                status: 'Completed',
+                completedAt: new Date()
+            });
+            showMessage(`Payout for request ${requestId.substring(0, 4)}... marked as completed.`, 'success');
+        } catch(e) {
+            console.error("Failed to complete withdrawal:", e);
+            showMessage("Failed to update withdrawal status.", 'error');
+        }
+    }
+
+
+    // --- UI RENDERING FUNCTIONS (Shared) ---
+
+    function updateDashboard(userData) {
+        document.getElementById('commission-balance').textContent = `$${userData.commissionBalance.toFixed(2)}`;
+        
+        let totalDownline = 0;
+        function countDownlines(id) {
+            const member = allUserData[id];
+            if (!member) return;
+            member.downlines.forEach(downlineId => {
+                totalDownline++;
+                countDownlines(downlineId);
+            });
+        }
+        countDownlines(currentUserId);
+        document.getElementById('total-downline').textContent = totalDownline;
+    }
+
+    // Renders the full matrix tree
+    function renderGenealogyTree(startUserId, panel = 'user') {
+        if (!allUserData[startUserId]) return;
+
+        const containerId = panel === 'admin' ? 'admin-tree-container' : 'genealogy-tree-container';
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        const viewUser = allUserData[startUserId];
+
+        if (panel === 'user') {
+            document.getElementById('current-tree-view').textContent = `Viewing: ${viewUser.username} (Level ${viewUser.level})`;
+        } else {
+            // Admin view does not need a dynamic view title in the same place
+             document.getElementById('admin-tree-message').style.display = 'none';
+        }
+
+        function buildTree(memberId, depth = 0) {
+            const member = allUserData[memberId];
+            // Limit visualization depth to 4 levels max for screen space
+            if (!member || depth > 3) { 
+                return '';
+            }
+
+            const isCurrent = memberId === currentUserId;
+            const hasDownlines = member.downlines.length > 0;
+            const nodeClass = isCurrent 
+                ? 'bg-accent-blue text-white shadow-xl shadow-blue-400/50' 
+                : 'matrix-node text-text-primary border-gray-300 dark:border-gray-600 dark:bg-gray-700';
+
+            let html = `
+                <div class="matrix-node flex flex-col items-center p-3 rounded-xl ${nodeClass}"
+                     title="Balance: $${member.commissionBalance.toFixed(2)} | Sponsor: ${member.sponsorId ? member.sponsorId.substring(0, 4) : 'N/A'}" 
+                     onclick="window.scrollTo({ top: 0, behavior: 'smooth' }); app.renderGenealogyTree('${memberId}', '${panel}')">
+                    <span class="font-bold text-sm truncate max-w-[100px]">${member.username}</span>
+                    <span class="text-xs ${isCurrent ? 'text-blue-200' : 'text-text-secondary'}">ID: ${memberId.substring(0, 4)}...</span>
+                </div>
+            `;
+
+            if (hasDownlines) {
+                let downlinesHtml = member.downlines.map(downlineId => {
+                    const downlineMember = allUserData[downlineId];
+                    if (downlineMember) {
+                        return `
+                            <div class="flex-1 min-w-0 flex flex-col items-center relative">
+                                <div class="w-1 h-4 node-line"></div> 
+                                ${buildTree(downlineId, depth + 1)}
+                            </div>
+                        `;
+                    }
+                    return '';
+                }).join('');
+
+                html += `
+                    <div class="downline-container w-full relative pt-4">
+                        <div class="absolute top-4 left-0 right-0 h-0.5 node-line z-0"></div> 
+                        <div class="flex justify-center w-full relative z-10 space-x-4">
+                            ${downlinesHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="flex flex-col items-center">
+                    ${html}
+                </div>
+            `;
+        }
+        
+        // Back Button Logic
+        const parentDiv = container.parentElement;
+        parentDiv.style.position = 'relative';
+        
+        // Remove existing back button
+        const existingButton = parentDiv.querySelector('.back-button');
+        if (existingButton) existingButton.remove();
+
+        if (startUserId !== currentUserId && allUserData[startUserId].parentId) {
+            const backButton = document.createElement('button');
+            backButton.className = 'back-button absolute top-4 left-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 p-2 rounded-lg text-sm hover:bg-gray-300 dark:hover:bg-gray-600 transition duration-150 z-20';
+            backButton.textContent = '↑ Go Up to Parent';
+            backButton.onclick = (e) => { e.stopPropagation(); app.renderGenealogyTree(allUserData[startUserId].parentId, panel); };
+            parentDiv.appendChild(backButton);
+        }
+
+        // Generate the tree
+        const treeRoot = document.createElement('div');
+        treeRoot.className = 'w-full flex justify-center pt-8';
+        treeRoot.innerHTML = buildTree(startUserId);
+        container.appendChild(treeRoot);
+    }
+
+    // --- MAIN APPLICATION INIT ---
+
+    window.app = {
+        initializeFirebase,
+        logout,
+        setLoginMode,
+        hideMessage,
+        setupUserListeners,
+        setupAdminListeners,
+        setupRealtimeDataListeners,
+        setupWithdrawalListener,
+        initializeUserDocument,
+        updateDashboard,
+        updateAdminDashboard,
+        renderGenealogyTree,
+        renderWithdrawalRequests,
+        completeWithdrawal,
+        registerNewMember,
+        requestWithdrawal
+    };
+
+    // --- EVENT LISTENERS AND INITIAL SETUP ---
+    
+    // 1. Theme initialization
+    initializeTheme();
+
+    // 2. Initial view setup (will transition to loading screen in firebase init)
+    renderView('login');
+
+    // 3. User Login (Auto Sign-in) via the button
+    document.getElementById('user-login-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        app.initializeFirebase();
+    });
+
+    // 4. Admin Login handler
+    DOM.forms.adminLogin.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const password = document.getElementById('admin-password').value;
+        if (password === ADMIN_PASSWORD) {
+            isAdmin = true;
+            localStorage.setItem('isAdminActive', 'true');
+            // Re-initialize Firebase to sign in anonymously with admin permissions
+            app.initializeFirebase();
+            DOM.forms.adminLogin.reset();
+        } else {
+            showMessage("Invalid Admin Password.", 'error');
+        }
+    });
+
+    // 5. User Registration handler
+    DOM.forms.register.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('new-member-name').value.trim();
+        if (name && currentUserId) {
+            await app.registerNewMember(name);
+        } else {
+            showMessage("Please enter a member name.", 'warning');
+        }
+    });
+
+    // 6. Withdrawal Request handler
+    DOM.forms.withdraw.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const amountInput = document.getElementById('withdraw-amount');
+        const amount = amountInput.value.trim();
+        if (amount) {
+            await app.requestWithdrawal(amount);
+        } else {
+            showMessage("Please enter a withdrawal amount.", 'warning');
+        }
+    });
+</script>
+</body>
+</html>
+
